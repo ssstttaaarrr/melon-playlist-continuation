@@ -10,17 +10,17 @@ parser.add_argument('--subset', default=0,
                     type=int, help='number of playlists to check(0 means whole playlists to be tested)')
 
 # Data & Result file path
-parser.add_argument('--train', default='data/orig/train.json',
+parser.add_argument('--train', default='../data/orig/train.json',
                     type=str, help='train file path')
-parser.add_argument('--valid', default='data/questions/val.json',
+parser.add_argument('--valid', default='../data/questions/val.json',
                     type=str, help='valid file path')
-parser.add_argument('--valid_answer', default='data/answers/val.json',
+parser.add_argument('--valid_answer', default='../data/answers/val.json',
                     type=str, help='test file path')
-parser.add_argument('--test', default='data/orig/train.json',
+parser.add_argument('--test', default='../data/orig/train.json',
                     type=str, help='test file path')
-parser.add_argument('--song_meta', default='data/meta_data/song_meta.json',
+parser.add_argument('--song_meta', default='../data/meta_data/song_meta.json',
                     type=str, help='song meta file path')
-parser.add_argument('--genre_gn_all', default='data/meta_data/genre_gn_all.json',
+parser.add_argument('--genre_gn_all', default='../data/meta_data/genre_gn_all.json',
                     type=str, help='genre all path')
 parser.add_argument('--result', default='result.json',
                     type=str, help='result json file path')
