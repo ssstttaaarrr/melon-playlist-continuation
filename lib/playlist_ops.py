@@ -55,7 +55,7 @@ def tag_in_title(indx, data_loader, factorizer):
     L = len(title)
     for i in range(L):
         for j in range(i, L):
-            s = title[i:j + 1]
+            s = title[i:j+1]
 
             if s not in factorizer.tag_cnt:
                 continue

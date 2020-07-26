@@ -79,7 +79,7 @@ def solve_tag_no_info(indx, data_loader, factorizer):
 
     score = {}
     for mtag in more_tag:
-        w = np.power(factorizer.tag_cnt[mtag], 0.5)
+        w = np.power(factorizer.tag_cnt[mtag], 0.25)
         for key, val in factorizer.adj_tag_tag[mtag].items():
             if key not in score:
                 score[key] = 0
@@ -110,15 +110,6 @@ def solve_tag_only_song(indx, data_loader, factorizer):
                 occur[pid] = 0
             occur[pid] += 1 / math.log(7 + L, 8)
 
-    for tag in playlist['tags']:
-        L = len(factorizer.plist_tag[tag])
-
-        for key in factorizer.plist_tag[tag]:
-            if key not in occur:
-                # occur[key] = 0
-                continue
-            occur[key] += 1.2 * 1 / math.log(7 + L)
-
     more_tag = tag_in_title(indx, data_loader, factorizer)
 
     for tag in more_tag:
@@ -126,14 +117,13 @@ def solve_tag_only_song(indx, data_loader, factorizer):
 
         for key in factorizer.plist_tag[tag]:
             if key not in occur:
-                # occur[key] = 0
-                continue
-            occur[key] += 1.2 * 1 / math.log(7 + L)
+                occur[key] = 0
+            occur[key] += 0.5 * 1 / math.log(7 + L)
 
     score = {}
     for key, val in occur.items():
-        if val < 0.333:
-            continue
+        # if val < 0.333:
+        #    continue
 
         p = data_loader.playlists_train[key]
         w = np.power(val, 4)
@@ -152,7 +142,10 @@ def solve_tag_only_song(indx, data_loader, factorizer):
 
     score = {}
     for mtag in more_tag:
-        w = np.power(factorizer.tag_cnt[mtag], 0.5)
+        if mtag in data_loader.meaningless:
+            continue
+
+        w = np.power(factorizer.tag_cnt[mtag], 0.25)
         for key, val in factorizer.adj_tag_tag[mtag].items():
             if key not in score:
                 score[key] = 0
@@ -178,7 +171,7 @@ def solve_tag_main(indx, data_loader, factorizer):
             continue
 
         for key, val in factorizer.adj_tag_tag[tag].items():
-            if val < 0.333:
+            if val < 0.5:
                 continue
 
             w = np.power(val, 0.125)
@@ -186,6 +179,17 @@ def solve_tag_main(indx, data_loader, factorizer):
             if key not in score:
                 score[key] = 0
             score[key] += w
+
+    for sid in playlist['songs']:
+        if sid not in factorizer.adj_song_tag:
+            continue
+
+        for key, val in factorizer.adj_song_tag[sid].items():
+            w = np.power(val, 0.125)
+
+            if key not in score:
+                continue
+            score[key] *= np.power(w, 0.01)
 
     add_tag(indx, ret, score, data_loader, factorizer)
 
@@ -208,25 +212,26 @@ def solve_tag_main(indx, data_loader, factorizer):
 
         for key in factorizer.plist_tag[tag]:
             if key not in occur:
-                # occur[key] = 0
-                continue
-            occur[key] += 1.2 * 1 / math.log(7 + L)
+                occur[key] = 0
+            occur[key] += 4 * 1 / math.log(7 + L)
 
     more_tag = tag_in_title(indx, data_loader, factorizer)
 
     for tag in more_tag:
         L = len(factorizer.plist_tag[tag])
 
+        if tag in data_loader.meaningless:
+            continue
+
         for key in factorizer.plist_tag[tag]:
             if key not in occur:
-                # occur[key] = 0
-                continue
-            occur[key] += 1.2 * 1 / math.log(7 + L)
+                occur[key] = 0
+            occur[key] += 1 * 1 / math.log(7 + L)
 
     score = {}
     for key, val in occur.items():
-        if val < 0.333:
-            continue
+        # if val < 0.333:
+        #    continue
 
         p = data_loader.playlists_train[key]
         w = np.power(val, 4)
@@ -245,6 +250,9 @@ def solve_tag_main(indx, data_loader, factorizer):
 
     score = {}
     for mtag in more_tag:
+        if mtag in data_loader.meaningless:
+            continue
+
         w = np.power(factorizer.tag_cnt[mtag], 0.5)
         for key, val in factorizer.adj_tag_tag[mtag].items():
             if key not in score:

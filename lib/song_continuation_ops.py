@@ -32,14 +32,13 @@ def possible(indx, sid, playlists_valq, songs):
 
 
 def in_term(date, mean, var, data_loader):
-    width = 3
-
+    width = args.confidence_interval_factor
     return mean - width * np.sqrt(var) <= (date - data_loader.standard).days and \
            (date - data_loader.standard).days <= mean + width * np.sqrt(var)
 
 
 def in_range(pop_cnt, pop_mean, pop_var):
-    width = 3
+    width = args.confidence_interval_factor
     return pop_mean - width * np.sqrt(pop_var) <= pop_cnt and pop_cnt <= pop_mean + width * np.sqrt(pop_var)
 
 
@@ -120,27 +119,33 @@ def add(indx, ret, score, data_loader, factorizer):
 
     mean = 0
     var = 0
-    # pop_mean = 0
-    # pop_var = 0
 
     if len(playlist['songs']) == 0:
         mean = 0
         var = 100000000000
-        # pop_mean = 0
-        # pop_var = 10000000000000
-
     else:
         for sid in playlist['songs']:
             mean += (factorizer.songs[sid]['issue_date'] - data_loader.standard).days
-            # pop_mean += song_cnt[sid]
         mean /= len(playlist['songs'])
-        # pop_mean /= len(playlist['songs'])
 
         for sid in playlist['songs']:
             var += np.power((factorizer.songs[sid]['issue_date'] - data_loader.standard).days - mean, 2)
-            # pop_var += np.power(song_cnt[sid] - pop_mean, 2)
         var /= len(playlist['songs'])
-        # pop_var /= len(playlist['songs'])
+
+    pop_mean = 0
+    pop_var = 0
+
+    if len(playlist['songs']) == 0:
+        pop_mean = 0
+        pop_var = 10000000000000
+    else:
+        for sid in playlist['songs']:
+            pop_mean += factorizer.song_cnt[sid]
+        pop_mean /= len(playlist['songs'])
+
+        for sid in playlist['songs']:
+            pop_var += np.power(factorizer.song_cnt[sid] - pop_mean, 2)
+        pop_var /= len(playlist['songs'])
 
 
     ########################################################################################
@@ -150,7 +155,6 @@ def add(indx, ret, score, data_loader, factorizer):
         if tag in data_loader.tag_to_genre:
             appear += data_loader.tag_to_genre[tag]
 
-    # TODO: 여기서 appear에 들어가는 객체는 tag->genre 아닌지? ('GN1003')
     more_tag = tag_in_title(indx, data_loader, factorizer)
     for tag in more_tag:
         if tag in data_loader.tag_to_genre:
@@ -215,7 +219,7 @@ def add(indx, ret, score, data_loader, factorizer):
             if gid in occur_genre:
                 found = 1
                 break
-        # TODO : 장르 2개 이상이 서로 다른 비율로 나왔을때의 가중치를 반영한다면?
+
         if found == 1:
             score[key] *= args.occur_genre_weight
 
@@ -232,8 +236,6 @@ def add(indx, ret, score, data_loader, factorizer):
 
     score = sorted(score.items(), key=lambda t: t[1], reverse=True)
 
-    ready_queue = []
-    # TODO: If is_few_artist, is_ew_album is enqued or listed to be merged?
     for i in range(len(score)):
         if len(ret) == 100:
             break
@@ -241,29 +243,24 @@ def add(indx, ret, score, data_loader, factorizer):
                 (not possible(indx, score[i][0], data_loader.playlists_valq, factorizer.songs)):
             continue
         if is_few_artist and (not is_our_artist(score[i][0], artists, factorizer)):
-            ready_queue.append(score[i][0])
             continue
         if is_few_album and (not is_our_album(score[i][0], albums, factorizer)):
-            ready_queue.append(score[i][0])
             continue
         if (dom == 1) and (who not in factorizer.songs[score[i][0]]['artist_id_basket']):
             continue
 
         ret.append(score[i][0])
 
-    if 100 - len(ret) > 0:
-        ret += ready_queue[:100 - len(ret)]
+    for i in range(len(score)):
+        if len(ret) == 100:
+            break
+        if (score[i][0] in playlist['songs']) or (score[i][0] in ret) or \
+                (not possible(indx, score[i][0], data_loader.playlists_valq, factorizer.songs)):
+            continue
+        if (dom == 1) and (who not in factorizer.songs[score[i][0]]['artist_id_basket']):
+            continue
 
-
-    # for i in range(len(score)):
-    #     if len(ret) == 100:
-    #         break
-    #     if (score[i][0] in playlist['songs']) or (score[i][0] in ret) or (not possible(indx, score[i][0])):
-    #         continue
-    #     if (dom == 1) and (who not in songs[score[i][0]]['artist_id_basket']):
-    #         continue
-    #
-    #     ret.append(score[i][0])
+        ret.append(score[i][0])
 
     return mean, var
 
@@ -355,8 +352,6 @@ def complete(indx, ret, mean, var, data_loader, factorizer):
             max_genre_score = value
             max_genre = key
 
-
-    ready_queue = []
     for i in range(len(factorizer.pop)):
         if len(ret) == 100:
             break
@@ -366,30 +361,26 @@ def complete(indx, ret, mean, var, data_loader, factorizer):
         if not in_term(factorizer.songs[factorizer.pop[i][0]]['issue_date'], mean, var, data_loader):
             continue
         if is_few_artist and (not is_our_artist(factorizer.pop[i][0], artists, factorizer)):
-            ready_queue.append(factorizer.pop[i][0])
             continue
         if is_few_album and (not is_our_album(factorizer.pop[i][0], albums, factorizer)):
-            ready_queue.append(factorizer.pop[i][0])
             continue
         if (dom == 1) and (who not in factorizer.songs[factorizer.pop[i][0]]['artist_id_basket']):
             continue
 
         ret.append(factorizer.pop[i][0])
 
-    if 100 - len(ret) > 0:
-        ret += ready_queue[:100 - len(ret)]
+    for i in range(len(factorizer.pop)):
+        if len(ret) == 100:
+            break
+        if (factorizer.pop[i][0] in playlist['songs']) or (factorizer.pop[i][0] in ret) or \
+                (not possible(indx, factorizer.pop[i][0], data_loader.playlists_valq, factorizer.songs)):
+            continue
+        if not in_term(factorizer.songs[factorizer.pop[i][0]]['issue_date'], mean, var, data_loader):
+            continue
+        if (dom == 1) and (who not in factorizer.songs[factorizer.pop[i][0]]['artist_id_basket']):
+            continue
 
-    # for i in range(len(pop)):
-    #     if len(ret) == 100:
-    #         break
-    #     if (pop[i][0] in playlist['songs']) or (pop[i][0] in ret) or (not possible(indx, pop[i][0])):
-    #         continue
-    #     if not in_term(songs[pop[i][0]]['issue_date'], mean, var):
-    #         continue
-    #     if (dom == 1) and (who not in songs[pop[i][0]]['artist_id_basket']):
-    #         continue
-    #
-    #     ret.append(pop[i][0])
+        ret.append(factorizer.pop[i][0])
 
     for i in range(len(factorizer.pop)):
         if len(ret) == 100:
@@ -398,7 +389,6 @@ def complete(indx, ret, mean, var, data_loader, factorizer):
                 (not possible(indx, factorizer.pop[i][0], data_loader.playlists_valq, factorizer.songs)):
             continue
         ret.append(factorizer.pop[i][0])
-
 
 # In[914]:
 
@@ -410,7 +400,7 @@ def solve_no_info(indx, data_loader, factorizer):
 
     score = {}
     for mtag in more_tag:
-        w = np.power(factorizer.tag_cnt[mtag], args.tag_decay_weight)
+        w = np.power(factorizer.tag_cnt[mtag], args.mtag_decay_weight)
         for key, val in factorizer.adj_tag[mtag].items():
             if key not in score:
                 score[key] = 0
@@ -445,7 +435,7 @@ def solve_one_tag(indx, data_loader, factorizer):
         for key in factorizer.plist[sid]:
             if key not in occur:
                 occur[key] = 0
-            occur[key] += 1 / math.log(7 + L, 8)
+            occur[key] += 1 / math.log(7 + L, args.log_base)
 
     score = {}
     for key, value in occur.items():
@@ -482,6 +472,77 @@ def solve_one_tag(indx, data_loader, factorizer):
     return ret
 
 
+def solve_two_tag(indx, data_loader, factorizer):
+    ret = []
+
+    playlist = data_loader.playlists_valq[indx]
+
+    tag1 = playlist['tags'][0]
+    tag2 = playlist['tags'][1]
+
+    if tag1 > tag2:
+        tag1, tag2 = tag2, tag1
+
+    meaning = args.meaning
+    if factorizer.tag_cnt[tag1] > meaning and factorizer.tag_cnt[tag2] > meaning:
+        w1 = np.power(factorizer.tag_cnt[tag1], args.tag_weight_exponent)
+        w2 = np.power(factorizer.tag_cnt[tag2], args.tag_weight_exponent)
+
+        intersection = {}
+        for sid in factorizer.adj_tag[tag1]:
+            if sid in factorizer.adj_tag[tag2]:
+                intersection[sid] = factorizer.adj_tag[tag1][sid] * w1 + factorizer.adj_tag[tag2][sid] * w2
+
+        add(indx, ret, intersection, data_loader, factorizer)
+
+        if len(ret) == 100:
+            return ret
+
+    occur_tag = {}
+    for tag in playlist['tags']:
+        L = len(factorizer.plist_tag[tag])
+
+        for key in factorizer.plist_tag[tag]:
+            if key not in occur_tag:
+                occur_tag[key] = 0
+            occur_tag[key] += 1 / math.log(7 + L, args.log_base)
+
+    score = {}
+    for key, value in occur_tag.items():
+        p = data_loader.playlists_train[key]
+        w = np.power(value, 4)
+
+        for sid in p['songs']:
+            if sid not in score:
+                score[sid] = 0
+            score[sid] += w
+
+    add(indx, ret, score, data_loader, factorizer)
+
+    if len(ret) == 100:
+        return ret
+
+    more_tag = tag_in_title(indx, data_loader, factorizer)
+
+    score = {}
+    for mtag in more_tag:
+        w = np.power(factorizer.tag_cnt[mtag], 0.5)
+        for key, val in factorizer.adj_tag[mtag].items():
+            if key not in score:
+                score[key] = 0
+            score[key] += val * w
+
+    mean, var = add(indx, ret, score, data_loader, factorizer)
+
+    if len(ret) == 100:
+        return ret
+
+    complete(indx, ret, mean, var, data_loader, factorizer)
+    return ret
+
+
+
+
 def solve_several_tag(indx, data_loader, factorizer):
     playlist = data_loader.playlists_valq[indx]
 
@@ -499,12 +560,12 @@ def solve_several_tag(indx, data_loader, factorizer):
             if (tag1, tag2) not in factorizer.adj_tag2:
                 continue
 
-            w = np.power(factorizer.tags_cnt[(tag1, tag2)], 0.125)
+            w = np.power(factorizer.tags_cnt[(tag1, tag2)], args.tag_weight_exponent)
 
             for sid in factorizer.adj_tag2[(tag1, tag2)]:
                 if sid not in score:
                     score[sid] = 0
-                score[sid] += np.power(factorizer.adj_tag2[(tag1, tag2)][sid], 0.125) * w
+                score[sid] += np.power(factorizer.adj_tag2[(tag1, tag2)][sid], args.tag_weight_exponent) * w
 
     score = sorted(score.items(), key=lambda t: t[1], reverse=True)
 
@@ -529,7 +590,7 @@ def solve_several_tag(indx, data_loader, factorizer):
         for key in factorizer.plist_tag[tag]:
             if key not in occur_tag:
                 occur_tag[key] = 0
-            occur_tag[key] += 1 / math.log(7 + L, 8)
+            occur_tag[key] += 1 / math.log(7 + L, args.log_base)
 
     for key, value in occur_tag.items():
         p = data_loader.playlists_train[key]
@@ -555,11 +616,11 @@ def solve_several_tag(indx, data_loader, factorizer):
 
     score = {}
     for tag in playlist['tags']:
-        w = np.power(factorizer.tag_cnt[tag], 0.125)
+        w = np.power(factorizer.tag_cnt[tag], args.tag_weight_exponent)
         for sid in factorizer.adj_tag[tag]:
             if sid not in score:
                 score[sid] = 0
-            score[sid] += np.power(factorizer.adj_tag[tag][sid], 0.125) * w
+            score[sid] += np.power(factorizer.adj_tag[tag][sid], args.tag_weight_exponent) * w
     score = sorted(score.items(), key=lambda t: t[1], reverse=True)
 
     for i in range(len(score)):
@@ -577,7 +638,7 @@ def solve_several_tag(indx, data_loader, factorizer):
 
     score = {}
     for mtag in more_tag:
-        w = np.power(factorizer.tag_cnt[mtag], 0.5)
+        w = np.power(factorizer.tag_cnt[mtag], args.mtag_decay_weight)
         for key, val in factorizer.adj_tag[mtag].items():
             if key not in score:
                 score[key] = 0
@@ -610,8 +671,8 @@ def solve_only_tag(indx, data_loader, factorizer):
         return solve_no_info(indx, data_loader, factorizer)
     elif len(playlist['tags']) == 1:
         return solve_one_tag(indx, data_loader, factorizer)
-    # elif len(playlist['tags']) == 2:
-    #     return solve_two_tag(indx)
+    elif len(playlist['tags']) == 2:
+        return solve_two_tag(indx, data_loader, factorizer)
     else:
         return solve_several_tag(indx, data_loader, factorizer)
 
@@ -631,7 +692,7 @@ def solve_main(indx, data_loader, factorizer):
         for pid in factorizer.plist[sid]:
             if pid not in occur:
                 occur[pid] = 0
-            occur[pid] += 1 / math.log(7 + L, 8)
+            occur[pid] += 1 / math.log(7 + L, args.log_base)
 
     for tag in playlist['tags']:
         L = len(factorizer.plist_tag[tag])
@@ -704,13 +765,13 @@ def solve_main(indx, data_loader, factorizer):
     complete(indx, ret, mean, var, data_loader, factorizer)
     return ret
 
-def solve(indx, data_loader, factorizer):
-    playlist = data_loader.playlists_valq[indx]
-
-    if len(playlist['songs']) == 0:
-        return solve_only_tag(indx, data_loader, factorizer)
-    else:
-        return solve_main(indx, data_loader, factorizer)
+# def solve(indx, data_loader, factorizer):
+#     playlist = data_loader.playlists_valq[indx]
+#
+#     if len(playlist['songs']) == 0:
+#         return solve_only_tag(indx, data_loader, factorizer)
+#     else:
+#         return solve_main(indx, data_loader, factorizer)
 
 
 def test(indx, data_loader, factorizer):

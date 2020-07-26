@@ -13,11 +13,27 @@ class melonPlaylist:
         self.playlists_vala = None
         self.songs = None
         self.genres = None
+        self.meaningless = None
         self.tag_to_genre = {}
         self.tag_to_date = {}
 
         self.std = args.standard_date.split('/')
         self.standard = date(int(self.std[0]), int(self.std[1]), int(self.std[2]))
+
+    def _set_meaningless(self):
+        self.meaningless = {
+            'R', '바', '1', 'B', '2', 'J', '3', 'v', '칠', '앙', '4', '9', '8', '6', 'I', 'd', '볾', '7', 'w', 'H', '왬'
+            , 'm', '5', '0', '푹', 'N', 'C', '묩', '켄', '쎈', '팎', 'ㄹ', '으', '웅', '외', 'X', '하', '무', '냥', 'U', 'A'
+            , 's', '헿', '웩', '읭', '능', '윽', '과', '뀿', '뀨', '모', '뫼', '퇼', 'y', '홓', '혀', '포', '궁', '55', '56'
+            , '22', '히힝', '하핫', '2부', '40', '78', '2탄', '50', '18', '8화', 'ㅎㅎ', '4주', '13', 'or', '66', '쿄쿄'
+            , '3년', '뭐지', '냠냠', '한다', '16', '98', '4화', '2주', '3초', '않는', '아녕', '54', '15', '17', '81', '47'
+            , '3기', '풬킨', '2등', '히힉', '규규', '않아', '팊니', '누뉴', '77', '팊콘', '잉잉', '1주', '첫주', '빠밤'
+            , '군머', '5만', '않고', '7명', '펌글', '순실', '퍽퍽', '1탄', '1년', '우앵', '노노', 'ww', '예꾸'
+            , '이런', '인듯', '4슴', '외츌', '14', '33', '허허', '6화', '12', '9화', '3화', '1화', '5화', '4시'
+            , '많다', '그것', '5초', 'ㅋㅋ', '2화', '1일', '7화', '30', '05', '06', '07', '매주', '아아', '00'
+            , '11', '01', '02', '03', '04', '으악', '우아', '쟌디', '2426', '55', '7연속', '56', '홓'
+            , '529곡', '14회'
+        }
 
     def _set_tag_to_genre(self):
         self.tag_to_genre['힙합'] = ['GN0300', 'GN1200']
@@ -95,20 +111,23 @@ class melonPlaylist:
         self.playlists_train = load_json(args.train)
         self.playlists_valq = load_json(args.valid)
         self.playlists_vala = load_json(args.valid_answer)
+        self.playlists_test = load_json(args.test)
 
         self.songs = load_json(args.song_meta)
         self.genres = load_json(args.genre_gn_all)
 
         if args.add_valid:
             self.playlists_train += self.playlists_valq
+            self.playlists_train += self.playlists_test
 
         self._set_tag_to_genre()
         self._set_tag_to_date()
+        self._set_meaningless()
 
         set_issue_date(self.songs)
         set_updt_date(self.playlists_valq)
 
-        print('play lists continuation is called', len(self.playlists_train))
+        print('The number of PlayLists to train: ', len(self.playlists_train))
 
         return self.playlists_train, self.playlists_valq, self.playlists_vala, self.songs, self.genres
 
